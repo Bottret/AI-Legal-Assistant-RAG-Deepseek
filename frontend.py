@@ -1,7 +1,7 @@
 import streamlit as st
 import time
 from vector_database import index_pdf, upload_pdf
-from rag_pipeline import answer_query, retrieve_docs, llm_model, summarize_document, generate_report
+from rag_pipeline import answer_query, retrieve_docs, llm_model, summarize_document, summarize_full_document, generate_report
 
 # --- Page Configuration ---
 st.set_page_config(page_title="AI Lawyer", page_icon="⚖️", layout="centered")
@@ -89,15 +89,30 @@ if uploaded_file:
     if st.button("📜 Summarize Document"):
         with st.spinner("🔍 Generating summary..."):
             time.sleep(1)
-            retrieved_docs = retrieve_docs("Summarize this document", uploaded_file.name)
-            if not retrieved_docs:
-                st.error("❌ No content retrieved. Try re-uploading the document.")
-                print("Debug: No documents retrieved.")
+
+            summary = summarize_full_document(file_path)
+
+            if not summary or len(summary.content.strip()) == 0:
+                st.error("❌ Summary failed. Try re-uploading the document.")
+                print("Debug: Summary returned empty.")
             else:
-                print("Debug: Retrieved documents:", retrieved_docs)
-                summary = summarize_document(retrieved_docs)
                 st.markdown("### 📝 Document Summary:")
-                st.markdown(f"<div class='summary-box'>{summary}</div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<div class='summary-box'>{summary.content}</div>",
+                    unsafe_allow_html=True
+                )
+    # if st.button("📜 Summarize Document"):
+    #     with st.spinner("🔍 Generating summary..."):
+    #         time.sleep(1)
+    #         retrieved_docs = retrieve_docs("Summarize this document", uploaded_file.name)
+    #         if not retrieved_docs:
+    #             st.error("❌ No content retrieved. Try re-uploading the document.")
+    #             print("Debug: No documents retrieved.")
+    #         else:
+    #             print("Debug: Retrieved documents:", retrieved_docs)
+    #             summary = summarize_document(retrieved_docs)
+    #             st.markdown("### 📝 Document Summary:")
+    #             st.markdown(f"<div class='summary-box'>{summary}</div>", unsafe_allow_html=True)
 
 # --- Chat Interface ---
 user_query = st.text_area("💬 Ask your legal question:", height=120, placeholder="Type your question here...")
@@ -111,7 +126,7 @@ if st.button("🔍 Ask AI Lawyer"):
             retrieved_docs = retrieve_docs(user_query, uploaded_file.name)
             response = answer_query(documents=retrieved_docs, model=llm_model, query=user_query)
             
-            st.chat_message("AI Lawyer").write(response)
+            st.chat_message("AI Lawyer").write(response.content)
             
             # Store conversation in session state
             st.session_state.user_queries.append(user_query)
